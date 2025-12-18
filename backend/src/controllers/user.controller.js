@@ -1,4 +1,5 @@
 import { User } from "../models/user.model.js";
+import bcrypt from "bcrypt";
 
 const registerUser = async (req, res) => {
     try {
@@ -13,13 +14,14 @@ const registerUser = async (req, res) => {
         if(existing){
             return res.status(400).json({ message: "User already exists. Please login." });
         }
+        // hash password server-side to ensure it's stored hashed
+        const hashedPassword = await bcrypt.hash(password, 10);
         // create User
         const user = await User.create({
             username,
             email: email.toLowerCase(),
-            password,
+            password: hashedPassword,
             loggedIn: "false"
-            
         });
         
         res.status(201).json({ 
@@ -45,8 +47,13 @@ const loginUser = async (req, res) => {
                 message: "User does not exist. Please Register."
             });
         }
-        //validate Password
-        isMatch = await user.comparePassword(password);
+        //validate Password (temporary debug logs)
+        console.log(`Login attempt for ${user.email}`);
+        console.log('provided password length:', password ? password.length : 0);
+        console.log('stored password length:', user.password ? user.password.length : 0);
+        let isMatch = await user.comparePassword(password);
+        console.log('password comparison result:', isMatch);
+        
         if(!isMatch){
             return res.status(400).json({
                 message: "Invalid Credentials"
@@ -60,9 +67,11 @@ const loginUser = async (req, res) => {
                 email: user.email
             }
         })
-
-
     } catch (error) {
+        res.status(500).json({
+            message: "Internal Server Error",
+            error: error.message
+        })
         
     }
 }
@@ -84,5 +93,6 @@ const getUsers= async(res) => {
 
 export {
     registerUser,
-    getUsers
+    getUsers,
+    loginUser
 }
